@@ -159,6 +159,10 @@ exports.getAllProperties = getAllProperties;
  * @return {Promise<{}>} A promise to the property.
  */
 
+const tokens = (props) => props.map((_, index) => '$' + (index + 1)).join(', ');
+
+const params = (obj, props) => props.map((prop) => obj[prop]);
+
 const addProperty = (property) => {
   const props = [
     'owner_id',
@@ -177,11 +181,6 @@ const addProperty = (property) => {
     'post_code',
   ];
 
-  const tokens = (props) =>
-    props.map((_, index) => '$' + (index + 1)).join(', ');
-
-  const params = (obj, props) => props.map((prop) => obj[prop]);
-
   return pool
     .query(
       `INSERT INTO properties (${props.join(', ')})
@@ -194,3 +193,24 @@ const addProperty = (property) => {
 };
 
 exports.addProperty = addProperty;
+
+/**-----------------------------------------------------------------------------
+ * Add a reservation to the database
+ * @param {{}} property An object containing all of the reservation details.
+ * @return {Promise<{}>} A promise to the reservation.
+ */
+
+const reserveProperty = (reservation) => {
+  const props = ['start_date', 'end_date', 'property_id', 'guest_id'];
+  return pool
+    .query(
+      `INSERT INTO reservations (${props.join(', ')})
+      VALUES (${tokens(props)})
+      RETURNING *;`,
+      params(reservation, props)
+    )
+    .then((res) => res.rows[0] || null)
+    .catch((err) => console.error('query error', err.stack));
+};
+
+exports.reserveProperty = reserveProperty;
