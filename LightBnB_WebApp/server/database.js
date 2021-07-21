@@ -15,6 +15,8 @@ const users = require('./json/users.json');
 
 // tristanjacobs@gmail.com
 // password
+// My reservations:
+// Also additional, Apple barn, Bank rest, Boat list, Bow forest, Down observe, Herself cow, Like arrow, Piano principle, Series cow, You weight
 
 /**-----------------------------------------------------------------------------
  * Get a single user from the database given their email.
@@ -71,9 +73,21 @@ exports.addUser = addUser;
  * @return {Promise<[{}]>} A promise to the reservations.
  */
 
-const getAllReservations = function (guest_id, limit = 10) {
-  return getAllProperties(null, 2);
-};
+const getAllReservations = (guest_id, limit = 10) =>
+  pool
+  .query(`
+    SELECT reservations.*, properties.*, avg(rating) AS average_rating
+    FROM reservations
+    JOIN properties ON reservations.property_id = properties.id
+    JOIN property_reviews ON property_reviews.property_id = properties.id
+    WHERE reservations.guest_id = $1
+    GROUP BY reservations.id, properties.id
+    ORDER BY start_date
+    LIMIT $2;`,
+    [guest_id, limit])
+  .then((res) => res.rows)
+  .catch((err) => console.error('query error', err.stack));
+
 exports.getAllReservations = getAllReservations;
 
 //------------------------------------------------------------------------------
