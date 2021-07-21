@@ -9,16 +9,8 @@ const pool = new Pool({
   database: process.env.DB_DATABASE,
 });
 
-const properties = require('./json/properties.json');
-const users = require('./json/users.json');
-
 //------------------------------------------------------------------------------
 // Users
-
-// tristanjacobs@gmail.com
-// password
-// My reservations:
-// Also additional, Apple barn, Bank rest, Boat list, Bow forest, Down observe, Herself cow, Like arrow, Piano principle, Series cow, You weight
 
 /**-----------------------------------------------------------------------------
  * Get a single user from the database given their email.
@@ -57,8 +49,7 @@ exports.getUserWithId = getUserWithId;
 const addUser = (user) =>
   pool
     .query(
-      `
-      INSERT INTO users (name, email, password)
+      `INSERT INTO users (name, email, password)
       VALUES ($1, $2, $3)
       RETURNING *;`,
       [user.name, user.email, user.password]
@@ -80,15 +71,14 @@ exports.addUser = addUser;
 const getAllReservations = (guest_id, limit = 10) =>
   pool
     .query(
-      `
-    SELECT reservations.*, properties.*, avg(rating) AS average_rating
-    FROM reservations
-    JOIN properties ON reservations.property_id = properties.id
-    JOIN property_reviews ON property_reviews.property_id = properties.id
-    WHERE reservations.guest_id = $1
-    GROUP BY reservations.id, properties.id
-    ORDER BY start_date
-    LIMIT $2;`,
+      `SELECT reservations.*, properties.*, avg(rating) AS average_rating
+      FROM reservations
+      JOIN properties ON reservations.property_id = properties.id
+      JOIN property_reviews ON property_reviews.property_id = properties.id
+      WHERE reservations.guest_id = $1
+      GROUP BY reservations.id, properties.id
+      ORDER BY start_date
+      LIMIT $2;`,
       [guest_id, limit]
     )
     .then((res) => res.rows)
@@ -135,7 +125,7 @@ const getAllProperties = (options, limit = 10) => {
   }
   if (whereStrings.length) {
     queryString += `
-    WHERE ${whereStrings.join('\n      AND ')}`;
+    WHERE ${whereStrings.join('\n AND ')}`;
   }
 
   // GROUP BY
@@ -155,8 +145,6 @@ const getAllProperties = (options, limit = 10) => {
     ORDER BY properties.cost_per_night
     LIMIT $${queryParams.length};`;
 
-  console.log(queryString, queryParams);
-
   return pool
     .query(queryString, queryParams)
     .then((res) => res.rows)
@@ -171,10 +159,38 @@ exports.getAllProperties = getAllProperties;
  * @return {Promise<{}>} A promise to the property.
  */
 
-const addProperty = function (property) {
-  const propertyId = Object.keys(properties).length + 1;
-  property.id = propertyId;
-  properties[propertyId] = property;
-  return Promise.resolve(property);
+const addProperty = (property) => {
+  const props = [
+    'owner_id',
+    'title',
+    'description',
+    'thumbnail_photo_url',
+    'cover_photo_url',
+    'cost_per_night',
+    'parking_spaces',
+    'number_of_bathrooms',
+    'number_of_bedrooms',
+    'country',
+    'street',
+    'city',
+    'province',
+    'post_code',
+  ];
+
+  const tokens = (props) =>
+    props.map((_, index) => '$' + (index + 1)).join(', ');
+
+  const params = (obj, props) => props.map((prop) => obj[prop]);
+
+  return pool
+    .query(
+      `INSERT INTO properties (${props.join(', ')})
+      VALUES (${tokens(props)})
+      RETURNING *;`,
+      params(property, props)
+    )
+    .then((res) => res.rows[0] || null)
+    .catch((err) => console.error('query error', err.stack));
 };
+
 exports.addProperty = addProperty;
