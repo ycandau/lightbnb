@@ -1,10 +1,12 @@
+require('dotenv').config();
+
 const { Pool } = require('pg');
 
 const pool = new Pool({
-  user: 'vagrant',
-  password: '123',
-  host: 'localhost',
-  database: 'lightbnb',
+  host: process.env.DB_HOST,
+  user: process.env.DB_USER,
+  password: process.env.DB_PASSWORD,
+  database: process.env.DB_DATABASE,
 });
 
 const properties = require('./json/properties.json');
@@ -54,11 +56,13 @@ exports.getUserWithId = getUserWithId;
 
 const addUser = (user) =>
   pool
-    .query(`
+    .query(
+      `
       INSERT INTO users (name, email, password)
       VALUES ($1, $2, $3)
       RETURNING *;`,
-      [user.name, user.email, user.password])
+      [user.name, user.email, user.password]
+    )
     .then((res) => res.rows[0] || null)
     .catch((err) => console.error('query error', err.stack));
 
@@ -75,7 +79,8 @@ exports.addUser = addUser;
 
 const getAllReservations = (guest_id, limit = 10) =>
   pool
-  .query(`
+    .query(
+      `
     SELECT reservations.*, properties.*, avg(rating) AS average_rating
     FROM reservations
     JOIN properties ON reservations.property_id = properties.id
@@ -84,9 +89,10 @@ const getAllReservations = (guest_id, limit = 10) =>
     GROUP BY reservations.id, properties.id
     ORDER BY start_date
     LIMIT $2;`,
-    [guest_id, limit])
-  .then((res) => res.rows)
-  .catch((err) => console.error('query error', err.stack));
+      [guest_id, limit]
+    )
+    .then((res) => res.rows)
+    .catch((err) => console.error('query error', err.stack));
 
 exports.getAllReservations = getAllReservations;
 
@@ -129,12 +135,12 @@ const getAllProperties = (options, limit = 10) => {
   }
   if (whereStrings.length) {
     queryString += `
-    WHERE ${whereStrings.join('\n      AND ')}`
+    WHERE ${whereStrings.join('\n      AND ')}`;
   }
 
   // GROUP BY
   queryString += `
-    GROUP BY properties.id`
+    GROUP BY properties.id`;
 
   // HAVING
   if (options.minimum_rating) {
@@ -144,11 +150,11 @@ const getAllProperties = (options, limit = 10) => {
   }
 
   // ORDER BY ... LIMIT ...
-  queryParams.push(limit)
+  queryParams.push(limit);
   queryString += `
     ORDER BY properties.cost_per_night
     LIMIT $${queryParams.length};`;
-  
+
   console.log(queryString, queryParams);
 
   return pool
